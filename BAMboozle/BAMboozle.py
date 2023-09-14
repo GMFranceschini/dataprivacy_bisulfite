@@ -169,7 +169,7 @@ def clean_bam(inpath, threads, fastapath, chr, strict, keepunmapped, keepseconda
 
             ref_seq = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
             msk = [i=="." for i in read.tags[2][1]]
-            final_outseq = [ref_seq[i] if msk[i] else read.query_alignment_sequence[i] for i in range(len(msk))]
+            final_outseq = "".join([ref_seq[i] if msk[i] else read.query_alignment_sequence[i] for i in range(len(msk))])
             final_cigar = [(0, readlen)]
             
         else: #spliced alignment

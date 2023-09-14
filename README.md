@@ -4,13 +4,16 @@
 
 **BAMboozle.py** is a tool that can remove genetic variation from sequencing reads stored in BAM file format to protect the privacy and genetic information of donor individuals.
 
+WARNING: modified work in progress version to deal with bisulfite data.
+
+
 ## Installation
 
 BAMboozle.py is available through PyPI. To install, type the following command line, and add `-U` for upgrading:
 `pip install BAMboozle`
 
 Alternatively, you can install from this GitHub repository for the latest version:
-`pip install git+https://github.com/sandberg-lab/dataprivacy`
+`pip install git+https://github.com/gmfranceschini/dataprivacy_bisulfite`
 
 Add `--user` if you don't have write permissions in your default python folder.
 
