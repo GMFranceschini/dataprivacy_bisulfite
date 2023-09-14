@@ -2,11 +2,13 @@
 # Author: Christoph Ziegenhain / christoph.ziegenhain@ki.se
 # Last update: 11-01-2021
 
-import os
-import pysam
 import argparse
-import multiprocessing as mp
 import itertools
+import multiprocessing as mp
+import os
+
+import pysam
+
 
 def makeBAMheader(args, v):
     bam = pysam.AlignmentFile(args.bam, 'rb')
@@ -164,8 +166,12 @@ def clean_bam(inpath, threads, fastapath, chr, strict, keepunmapped, keepseconda
                 present_cigar_types[0], incigar[0] = 0, (0, incigar[0][1])
 
         if 3 not in present_cigar_types: #unspliced alignment, simply fix sequence
-            final_outseq = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
+
+            ref_seq = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
+            msk = [i=="." for i in read.tags[2][1]]
+            final_outseq = [ref_seq[i] if msk[i] else read.query_alignment_sequence[i] for i in range(len(msk))]
             final_cigar = [(0, readlen)]
+            
         else: #spliced alignment
             splice_fields = [x == 3 for x in present_cigar_types]
             splice_field_idx = [idx for idx, splice in enumerate(splice_fields) if splice]
