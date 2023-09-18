@@ -88,6 +88,22 @@ def count_ref_consuming_bases(cigartuples):
             bases = bases + cig[1]
     return bases
 
+def tag_fix(incigar, bis_tag):
+    new_tag = ""
+    curr_tag = 0
+    
+    for cig, length in incigar:
+        if cig == 0:
+            new_tag += bis_tag[curr_tag:curr_tag+length]
+            curr_tag = curr_tag + length
+        elif cig == 1: # Insertion
+            curr_tag = curr_tag + length
+        elif cig == 2: # Deletion
+            new_tag = new_tag + "Z"*length
+    new_tag = "".join(new_tag)
+    return(new_tag)
+
+
 
 def clean_bam(
     inpath, threads, fastapath, chr, strict, keepunmapped, keepsecondary, anonheader
@@ -150,13 +166,7 @@ def clean_bam(
         # modify tags
         trim_tags = ["MC", "XN", "XO", "XG"]
 
-        if read.has_tag('MD'): #do we fix it or remove it?
-            fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
-            seq = read.query_sequence
-            rseq = read.get_reference_sequence().upper()
-            btag = read.get_tags()[2][1]
-            read.query_sequence = "".join([s if b.upper() == "Z" else r for s, r, b in zip(seq, fa_ref, btag)])
-            read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
+        
 
 
         for t in trim_tags:
@@ -174,10 +184,20 @@ def clean_bam(
         present_cigar_types = [x[0] for x in incigar]
 
         if present_cigar_types == [0]:
+            fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
+            seq = read.query_sequence
+            btag = read.get_tags()[2][1]
+            read.query_sequence = "".join([s if b.upper() == "Z" else r for s, r, b in zip(seq, fa_ref, btag)])
+            read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
             final_outseq = read.query_sequence
             final_cigar = [(0, readlen)]
-            
         else:
+            fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
+            seq = read.query_sequence
+            btag = read.get_tags()[2][1]
+            btag = tag_fix(incigar=incigar, bis_tag=btag)
+            read.query_sequence = "".join([s if b.upper() == "Z" else r for s, r, b in zip(seq, fa_ref, btag)])
+            read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
             final_outseq = []
             final_qual = []
             curr_query = 0
