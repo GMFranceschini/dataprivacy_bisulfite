@@ -6,6 +6,7 @@ Home-page: https://github.com/sandberg-lab/dataprivacy
 Author: Christoph Ziegenhain
 Author-email: christoph.ziegenhain@ki.se
 License: GPL-3.0-or-later
+Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
 Requires-Python: >=3.6
@@ -96,3 +97,5 @@ https://www.nature.com/articles/s41467-021-26152-8
 ERROR: No matching distribution found for BAMboozle
 
 Make sure that you are using pip from a python3 installation! Try `pip3 install BAMboozle` instead.
+
+

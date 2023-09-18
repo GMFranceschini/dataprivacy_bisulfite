@@ -135,11 +135,7 @@ def clean_bam(
         # only use primary alignments
         if not keepsecondary and read.is_secondary:
             continue
-
-        # determine some basics
-        readlen = read.query_length
-        qual = read.query_qualities
-        
+     
         if read.is_paired:
             readtype = "PE"
             readtype_int = 2
@@ -153,14 +149,59 @@ def clean_bam(
             if read.has_tag(t):
                 read.set_tag(tag=t, value_type="I", value=0)
         
-        if read.has_tag("MD"):
+        # determine some basics
+        readlen = read.query_length
+        qual = read.query_qualities
+        # look at cigar value
+        incigar = read.cigartuples
+        present_cigar_types = [x[0] for x in incigar]
+
+        if present_cigar_types == [0]: # only matches
             fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
             seq = read.query_sequence
-            rseq = read.get_reference_sequence().upper()
-            btag = read.get_tags()[2][1]
-            "".join([r if b.upper() != "Z" else s for s, r, b in zip(seq, fa_ref, btag)])
+            # rseq = read.get_reference_sequence().upper()
+            btag = read.get_tags()[1][1]
+            read.query_sequence = "".join([r if b.upper() != "Z" else s for s, r, b in zip(seq, fa_ref, btag)])
             read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
 
+        else: # indels are present
+            conv_seq = ""
+            read_pos = 0
+            ref_pos = 0
+
+            for cig_item in incigar:
+
+                cig_item_len = cig_item[1]
+
+                if cig_item[0] == 0: # match
+                    fa_ref = fa.fetch(chr, read.reference_start+ref_pos, read.reference_start+ref_pos+cig_item_len)
+                    seq = read.query_sequence[read_pos:read_pos+cig_item_len]
+                    btag = read.get_tags()[1][1][read_pos:read_pos+cig_item_len]
+                    conv_seq += "".join([r if b != "z" else s for s, r, b in zip(seq, fa_ref, btag)]).upper()
+                    read_pos += cig_item_len
+                    ref_pos += cig_item_len
+
+                elif cig_item[0] == 1: #insertion
+                    for _ in range(cig_item_len):
+                        qual.pop(read_pos)
+                    read_pos += cig_item_len
+
+                elif cig_item[0] == 2: # deletion
+                    conv_seq += fa.fetch(chr, read.reference_start+ref_pos, read.reference_start+ref_pos+cig_item_len).upper()
+                    del_quality = 38
+                    for _ in range(cig_item_len):
+                        qual.insert(ref_pos, del_quality)
+                    # read_pos += cig_item_len
+                    ref_pos += cig_item_len
+                else:
+                    break
+            check_len = len([x[1] for x in incigar if x[0] != 1]) == len(conv_seq)
+            check_qual = len(qual) == len(conv_seq)
+
+            readlen = len(conv_seq)
+            read.query_sequence = conv_seq
+            read.query_qualities = qual
+            read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
 
         for t in trim_tags:
             if read.has_tag(t):
@@ -172,14 +213,10 @@ def clean_bam(
                 out.write(read)
             continue
 
-        # look at cigar value
-        incigar = read.cigartuples
-        present_cigar_types = [x[0] for x in incigar]
-
-        if 3 not in present_cigar_types:
-            final_outseq = read.query_sequence
-            final_cigar = [(0, readlen)]
-
+        # if 3 not in present_cigar_types:
+        #     final_outseq = read.query_sequence
+        #     qual = read.query_qualities
+        #     read.cigartuples = [(0, readlen)]
 
         # if len(final_outseq) != len(
         #     qual
@@ -191,9 +228,9 @@ def clean_bam(
         #     qual = qual[: len(final_outseq)]
             
         # set alignment record and write
-        read.query_sequence = final_outseq
-        read.query_qualities = qual
-        read.cigartuples = final_cigar
+        # read.query_sequence = final_outseq
+        # read.query_qualities = qual
+        read.cigartuples = [(0, readlen)]
         out.write(read)
         
     inp.close()
