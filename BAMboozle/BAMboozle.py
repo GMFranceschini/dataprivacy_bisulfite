@@ -139,7 +139,7 @@ def clean_bam(
         # determine some basics
         readlen = read.query_length
         qual = read.query_qualities
-        
+
         if read.is_paired:
             readtype = "PE"
             readtype_int = 2
@@ -148,17 +148,14 @@ def clean_bam(
             readtype_int = 1
 
         # modify tags
-        trim_tags = ["MC", "XN", "XM", "XO", "XG"]
-        for t in ["NM", "nM"]:
-            if read.has_tag(t):
-                read.set_tag(tag=t, value_type="I", value=0)
-        
-        if read.has_tag("MD"):
+        trim_tags = ["MC", "XN", "XO", "XG"]
+
+        if read.has_tag('MD'): #do we fix it or remove it?
             fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
             seq = read.query_sequence
             rseq = read.get_reference_sequence().upper()
             btag = read.get_tags()[2][1]
-            "".join([r if b.upper() != "Z" else s for s, r, b in zip(seq, fa_ref, btag)])
+            read.query_sequence = "".join([s if b.upper() == "Z" else r for s, r, b in zip(seq, fa_ref, btag)])
             read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
 
 
@@ -176,26 +173,51 @@ def clean_bam(
         incigar = read.cigartuples
         present_cigar_types = [x[0] for x in incigar]
 
-        if 3 not in present_cigar_types:
+        if present_cigar_types == [0]:
             final_outseq = read.query_sequence
             final_cigar = [(0, readlen)]
-
-
-        # if len(final_outseq) != len(
-        #     qual
-        # ):  # the sanitized output sequence cannot be longer than a contig (reason:deletions)
-        #     len_diff = len(qual) - len(final_outseq)
-        #     old_len = final_cigar[-1][1]
-        #     new_len = old_len - len_diff
-        #     final_cigar[-1] = (0, new_len)
-        #     qual = qual[: len(final_outseq)]
             
+        else:
+            final_outseq = []
+            final_qual = []
+            curr_query = 0
+            curr_ref = 0
+
+            for op, length in incigar:
+                if op == 0:
+                    final_outseq.extend(read.query_sequence[curr_ref:curr_ref+length])
+                    final_qual.extend(qual[curr_query:curr_query+length])
+                    curr_ref = curr_ref + length
+                    curr_query = curr_query + length
+                elif op == 1: # Insertion
+                    curr_query = curr_query + length
+                elif op == 2: # Deletion
+                    final_outseq.extend("N" * length)
+                    final_qual.extend([38] * length)
+                    curr_ref = curr_ref + length
+                    
+            final_outseq = "".join(final_outseq)
+            final_outseq = final_outseq.upper()
+            
+            qual = final_qual
+            final_cigar = [(0, len(qual))]
+
+
+        if len(final_outseq) != len(
+            qual
+        ):  # the sanitized output sequence cannot be longer than a contig (reason:deletions)
+            len_diff = len(qual) - len(final_outseq)
+            old_len = final_cigar[-1][1]
+            new_len = old_len - len_diff
+            final_cigar[-1] = (0, new_len)
+            qual = qual[: len(final_outseq)]
+
         # set alignment record and write
         read.query_sequence = final_outseq
         read.query_qualities = qual
         read.cigartuples = final_cigar
         out.write(read)
-        
+
     inp.close()
     out.close()
 
