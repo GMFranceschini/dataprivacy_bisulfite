@@ -1,0 +1,12 @@
+LICENSE
+README.md
+setup.py
+BAMboozle/BAMboozle.py
+BAMboozle/__init__.py
+BAMboozle/version.py
+BAMboozle.egg-info/PKG-INFO
+BAMboozle.egg-info/SOURCES.txt
+BAMboozle.egg-info/dependency_links.txt
+BAMboozle.egg-info/entry_points.txt
+BAMboozle.egg-info/requires.txt
+BAMboozle.egg-info/top_level.txt

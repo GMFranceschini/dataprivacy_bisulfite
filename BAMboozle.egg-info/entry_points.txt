@@ -1,0 +1,2 @@
+[console_scripts]
+BAMboozle = BAMboozle.BAMboozle:main
