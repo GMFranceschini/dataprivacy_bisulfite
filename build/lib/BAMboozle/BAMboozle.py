@@ -3,7 +3,6 @@
 # Last update: 11-01-2021
 
 import argparse
-import itertools
 import multiprocessing as mp
 import os
 
@@ -80,18 +79,9 @@ def remove_tag(read, rtag):
     read.set_tags(kept_tags)
     return read
 
-
-def count_ref_consuming_bases(cigartuples):
-    bases = 0
-    for cig in cigartuples:
-        if cig[0] in [0, 2, 7, 8]:
-            bases = bases + cig[1]
-    return bases
-
 def tag_fix(incigar, bis_tag):
     new_tag = ""
     curr_tag = 0
-    
     for cig, length in incigar:
         if cig == 0:
             new_tag += bis_tag[curr_tag:curr_tag+length]
@@ -99,10 +89,34 @@ def tag_fix(incigar, bis_tag):
         elif cig == 1: # Insertion
             curr_tag = curr_tag + length
         elif cig == 2: # Deletion
-            new_tag = new_tag + "Z"*length
+            new_tag = new_tag + "."*length
     new_tag = "".join(new_tag)
     return(new_tag)
 
+
+def find_cg_positions(dna_string):
+    cg_positions = []
+    for i in range(len(dna_string) - 1):
+        if dna_string[i:i + 2] == "CG":
+            cg_positions.append(i+1)
+    return cg_positions
+
+def parse_seq(query, ref, btag):
+    
+    out = []
+    cg_pos = find_cg_positions(ref)
+    
+    for i, (s, r, b) in enumerate(zip(query, ref, btag)):
+        if b.upper() == "Z":
+            out.extend(s)
+        elif b == ".":
+            if i in cg_pos:
+                out.extend("N")
+            else:
+                out.extend(r)
+            
+    out = "".join(out)
+    return out
 
 
 def clean_bam(
@@ -123,7 +137,7 @@ def clean_bam(
     for read in inp.fetch(chr):
         # deal with unmapped reads
         if chrlabel == "unmapped":
-            trim_tags = ["uT", "nM", "NM", "XN", "XM", "XO", "XG"]
+            trim_tags = ["uT", "nM", "NM", "XN", "XM", "XO"]
             if strict:
                 trim_tags += [
                     "NH",
@@ -164,10 +178,7 @@ def clean_bam(
             readtype_int = 1
 
         # modify tags
-        trim_tags = ["MC", "XN", "XO", "XG"]
-
-        
-
+        trim_tags = ["MC", "XN", "XO"]
 
         for t in trim_tags:
             if read.has_tag(t):
@@ -182,22 +193,22 @@ def clean_bam(
         # look at cigar value
         incigar = read.cigartuples
         present_cigar_types = [x[0] for x in incigar]
+        
+        fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
+        fa_ref = read.get_reference_sequence()
+        seq = read.query_sequence
+        btag = read.get_tags()[2][1]
 
         if present_cigar_types == [0]:
-            fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
-            seq = read.query_sequence
-            btag = read.get_tags()[2][1]
-            read.query_sequence = "".join([s if b.upper() == "Z" else r for s, r, b in zip(seq, fa_ref, btag)])
+            btag = "".join([i if i.upper() == "Z" else "." for i in btag])
+            read.query_sequence = parse_seq(seq, fa_ref, btag)
             read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
             final_outseq = read.query_sequence
             final_cigar = [(0, readlen)]
+            
         else:
-            fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
-            seq = read.query_sequence
-            btag = read.get_tags()[2][1]
             btag = tag_fix(incigar=incigar, bis_tag=btag)
-            read.query_sequence = "".join([s if b.upper() == "Z" else r for s, r, b in zip(seq, fa_ref, btag)])
-            read.set_tag(tag="MD", value_type="Z", value=read.query_sequence)
+            btag = "".join([i if i.upper() == "Z" else "." for i in btag])
             final_outseq = []
             final_qual = []
             curr_query = 0
@@ -218,9 +229,10 @@ def clean_bam(
                     
             final_outseq = "".join(final_outseq)
             final_outseq = final_outseq.upper()
-            
+            final_outseq = parse_seq(final_outseq, fa_ref, btag)
             qual = final_qual
             final_cigar = [(0, len(qual))]
+            read.set_tag(tag="MD", value_type="Z", value=final_outseq)
 
 
         if len(final_outseq) != len(
@@ -236,6 +248,7 @@ def clean_bam(
         read.query_sequence = final_outseq
         read.query_qualities = qual
         read.cigartuples = final_cigar
+        read.set_tag("XM", btag, replace=True)
         out.write(read)
 
     inp.close()
