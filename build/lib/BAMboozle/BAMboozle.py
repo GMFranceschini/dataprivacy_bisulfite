@@ -89,7 +89,7 @@ def tag_fix(incigar, bis_tag):
         elif cig == 1: # Insertion
             curr_tag = curr_tag + length
         elif cig == 2: # Deletion
-            new_tag = new_tag + "."*length
+            new_tag = new_tag + "."*length 
     new_tag = "".join(new_tag)
     return(new_tag)
 
@@ -97,7 +97,7 @@ def tag_fix(incigar, bis_tag):
 def find_cg_positions(dna_string):
     cg_positions = []
     for i in range(len(dna_string) - 1):
-        if dna_string[i:i + 2] == "CG":
+        if dna_string[i:i + 2].upper() == "CG":
             cg_positions.append(i+1)
     return cg_positions
 
@@ -194,8 +194,8 @@ def clean_bam(
         incigar = read.cigartuples
         present_cigar_types = [x[0] for x in incigar]
         
-        fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+readlen)
-        fa_ref = read.get_reference_sequence()
+        fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+sum([x[1] for x in incigar if x[0] != 1]))
+        # fa_ref = read.get_reference_sequence()
         seq = read.query_sequence
         btag = read.get_tags()[2][1]
 
@@ -216,19 +216,24 @@ def clean_bam(
 
             for op, length in incigar:
                 if op == 0:
-                    final_outseq.extend(read.query_sequence[curr_ref:curr_ref+length])
+                    final_outseq.extend(read.query_sequence[curr_query:curr_query+length])
                     final_qual.extend(qual[curr_query:curr_query+length])
                     curr_ref = curr_ref + length
                     curr_query = curr_query + length
                 elif op == 1: # Insertion
+                    indel = "in"
                     curr_query = curr_query + length
                 elif op == 2: # Deletion
-                    final_outseq.extend("N" * length)
+                    indel = "del"
+                    final_outseq.extend(fa_ref[curr_ref:curr_ref+length])
+                    # final_outseq.extend("N" * length)
                     final_qual.extend([38] * length)
                     curr_ref = curr_ref + length
                     
             final_outseq = "".join(final_outseq)
             final_outseq = final_outseq.upper()
+            
+            assert len(final_outseq) == len(fa_ref) == len(btag), f"{indel} case; \nquery has len {len(final_outseq)}\nref has len{len(fa_ref)}\ntag has len {len(btag)}\noriginal {readlen}\ncigar {incigar}"
             final_outseq = parse_seq(final_outseq, fa_ref, btag)
             qual = final_qual
             final_cigar = [(0, len(qual))]
