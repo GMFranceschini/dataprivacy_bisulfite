@@ -11,12 +11,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="BAMboozle",
     version=__version__,
-    author="Christoph Ziegenhain",
-    author_email="christoph.ziegenhain@ki.se",
-    description="remove genetic variation from sequencing data",
+    author="GM Franceschini, E Frigoli",
+    author_email="franceschini.gianmarco@gmail.com",
+    description="remove genetic variation from bisulfite sequencing data",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/sandberg-lab/dataprivacy",
+    url="https://github.com/gmfranceschini/dataprivacy_bisulfite",
     packages=setuptools.find_packages(),
     install_requires=["pysam>=0.14.0"],
     entry_points={
