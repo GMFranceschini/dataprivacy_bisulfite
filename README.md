@@ -1,9 +1,9 @@
 
-## BAMboozle.py: de-identification of sequencing reads
+## De-identification of bisulfite-treated sequencing reads
 
-**BAMboozle.py** is a tool that can remove genetic variation from sequencing reads stored in BAM file format to protect the privacy and genetic information of donor individuals.
+This is a modification of the original **BAMboozle.py**, a tool that can remove genetic variation from sequencing reads stored in BAM file format to protect the privacy and genetic information of donor individuals.
 
-WARNING: this is a modified version to specifically deal with bisulfite converted data aligned with `bismark`. 
+NOTICE: this is an adapted version to specifically deal with bisulfite converted sequencing alignments (`.bam` files) with `bismark`.
 See the original repo for applications to RNA-seq and ATAC-seq (https://github.com/sandberg-lab/dataprivacy).
 
 ## Installation
@@ -21,7 +21,7 @@ The .bam file should be coordinate sorted and indexed, however `BAMboozle.py` wi
 The tool expects a .bam file aligned with `bismark`. Other aligners might be supported in the future.
 
     usage: BAMboozle [-h] [--bam FILENAME] [--out FILENAME] [--fa FILENAME]
-                            [--p P] [--strict] [--keepsecondary] [--keepunmapped]
+                            [--p P] [--keepsecondary] [--keepunmapped]
 
     optional arguments:
       -h, --help      show this help message and exit
@@ -49,7 +49,6 @@ Here is an overview of the sequence correction strategy:
 Bisulfite-specific adaptation: the above mentioned corrections are not applied to CpG bases, in which mismatches should be ratained as they reflect DNA methylation variability. Furthermore, the bismark
 tag is edited to keep only CpG methylation and discard DNA methylation in other base contexts.
 
-
 Donor-related information could also be inferred from standard bam fields and auxiliary tags:
 
  1. CIGAR value is matched to the BAMboozled sequence (eg. 100M).
@@ -60,11 +59,3 @@ The output bam file also will contain a `@PG` line reflecting the invoked comman
 ## Original reference
 Ziegenhain, C., Sandberg, R. BAMboozle removes genetic variation from human sequence data for open data sharing. Nat Commun 12, 6216 (2021). https://doi.org/10.1038/s41467-021-26152-8
 https://www.nature.com/articles/s41467-021-26152-8
-
-## FAQ
-
-> Help! I am getting the following error message:
-> ERROR: Could not find a version that satisfies the requirement BAMboozle (from versions: none)
-ERROR: No matching distribution found for BAMboozle
-
-Make sure that you are using pip from a python3 installation! Try `pip3 install BAMboozle` instead.
