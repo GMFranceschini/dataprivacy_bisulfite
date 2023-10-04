@@ -13,7 +13,7 @@ setuptools.setup(
     version=__version__,
     author="GM Franceschini, E Frigoli",
     author_email="franceschini.gianmarco@gmail.com",
-    description="remove genetic variation from bisulfite sequencing data",
+    description="remove genetic variation from bisulfite sequencing data - A modified version of sandberg-lab/dataprivacy",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/gmfranceschini/dataprivacy_bisulfite",

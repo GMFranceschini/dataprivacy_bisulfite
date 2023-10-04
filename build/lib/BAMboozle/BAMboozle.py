@@ -25,8 +25,6 @@ def makeBAMheader(args, v):
         + str(args.p)
     )
 
-    if args.strict:
-        cmdlinecall = cmdlinecall + " --strict"
     if args.keepunmapped:
         cmdlinecall = cmdlinecall + " --keepunmapped"
     if args.keepsecondary:
@@ -120,7 +118,7 @@ def parse_seq(query, ref, btag):
 
 
 def clean_bam(
-    inpath, threads, fastapath, chr, strict, keepunmapped, keepsecondary, anonheader
+    inpath, threads, fastapath, chr, keepunmapped, keepsecondary, anonheader
 ):
     fa = pysam.FastaFile(fastapath)
 
@@ -138,24 +136,6 @@ def clean_bam(
         # deal with unmapped reads
         if chrlabel == "unmapped":
             trim_tags = ["uT", "nM", "NM", "XN", "XM", "XO"]
-            if strict:
-                trim_tags += [
-                    "NH",
-                    "HI",
-                    "IH",
-                    "AS",
-                    "MQ",
-                    "H1",
-                    "H2",
-                    "OA",
-                    "OC",
-                    "OP",
-                    "OQ",
-                    "SA",
-                    "SM",
-                    "XA",
-                    "XS",
-                ]
             for t in trim_tags:
                 if read.has_tag(t):
                     read = remove_tag(read, t)
@@ -193,8 +173,8 @@ def clean_bam(
         # look at cigar value
         incigar = read.cigartuples
         present_cigar_types = [x[0] for x in incigar]
-        
-        fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+sum([x[1] for x in incigar if x[0] != 1]))
+        len_from_cigar = sum([x[1] for x in incigar if x[0] != 1])
+        fa_ref = fa.fetch(chr, read.reference_start, read.reference_start+len_from_cigar)
         # fa_ref = read.get_reference_sequence()
         seq = read.query_sequence
         btag = read.get_tags()[2][1]
@@ -233,7 +213,6 @@ def clean_bam(
             final_outseq = "".join(final_outseq)
             final_outseq = final_outseq.upper()
             
-            assert len(final_outseq) == len(fa_ref) == len(btag), f"{indel} case; \nquery has len {len(final_outseq)}\nref has len{len(fa_ref)}\ntag has len {len(btag)}\noriginal {readlen}\ncigar {incigar}"
             final_outseq = parse_seq(final_outseq, fa_ref, btag)
             qual = final_qual
             final_cigar = [(0, len(qual))]
@@ -297,11 +276,6 @@ def main():
     )
     parser.add_argument("--p", type=int, default=10, help="Number of processes to use")
     parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Strict: also sanitize mapping score & auxiliary tags (eg. AS / NH).",
-    )
-    parser.add_argument(
         "--keepsecondary",
         action="store_true",
         help="Keep secondary alignments in output bam file.",
@@ -356,7 +330,6 @@ def main():
                 pysam_workers,
                 args.fa,
                 chr,
-                args.strict,
                 args.keepunmapped,
                 args.keepsecondary,
                 bamheader,
@@ -365,8 +338,6 @@ def main():
         for chr in chrs
     ]
     x = [r.get() for r in results]
-    # single threaded below:
-    # [clean_bam(bampath,pysam_workers,args.fa,chr,args.strict) for chr in chrs]
 
     print("Creating final output .bam file...")
     collect_bam_chunks(

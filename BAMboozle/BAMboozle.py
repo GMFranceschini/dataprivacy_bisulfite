@@ -25,8 +25,6 @@ def makeBAMheader(args, v):
         + str(args.p)
     )
 
-    if args.strict:
-        cmdlinecall = cmdlinecall + " --strict"
     if args.keepunmapped:
         cmdlinecall = cmdlinecall + " --keepunmapped"
     if args.keepsecondary:
@@ -120,7 +118,7 @@ def parse_seq(query, ref, btag):
 
 
 def clean_bam(
-    inpath, threads, fastapath, chr, strict, keepunmapped, keepsecondary, anonheader
+    inpath, threads, fastapath, chr, keepunmapped, keepsecondary, anonheader
 ):
     fa = pysam.FastaFile(fastapath)
 
@@ -138,24 +136,6 @@ def clean_bam(
         # deal with unmapped reads
         if chrlabel == "unmapped":
             trim_tags = ["uT", "nM", "NM", "XN", "XM", "XO"]
-            if strict:
-                trim_tags += [
-                    "NH",
-                    "HI",
-                    "IH",
-                    "AS",
-                    "MQ",
-                    "H1",
-                    "H2",
-                    "OA",
-                    "OC",
-                    "OP",
-                    "OQ",
-                    "SA",
-                    "SM",
-                    "XA",
-                    "XS",
-                ]
             for t in trim_tags:
                 if read.has_tag(t):
                     read = remove_tag(read, t)
@@ -296,11 +276,6 @@ def main():
     )
     parser.add_argument("--p", type=int, default=10, help="Number of processes to use")
     parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Strict: also sanitize mapping score & auxiliary tags (eg. AS / NH).",
-    )
-    parser.add_argument(
         "--keepsecondary",
         action="store_true",
         help="Keep secondary alignments in output bam file.",
@@ -355,7 +330,6 @@ def main():
                 pysam_workers,
                 args.fa,
                 chr,
-                args.strict,
                 args.keepunmapped,
                 args.keepsecondary,
                 bamheader,
@@ -364,8 +338,6 @@ def main():
         for chr in chrs
     ]
     x = [r.get() for r in results]
-    # single threaded below:
-    # [clean_bam(bampath,pysam_workers,args.fa,chr,args.strict) for chr in chrs]
 
     print("Creating final output .bam file...")
     collect_bam_chunks(

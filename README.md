@@ -1,11 +1,10 @@
 
-
 ## BAMboozle.py: de-identification of sequencing reads
 
 **BAMboozle.py** is a tool that can remove genetic variation from sequencing reads stored in BAM file format to protect the privacy and genetic information of donor individuals.
 
-WARNING: this is a modified work in progress version to specifically deal with bisulfite converted data. See the original repo for applications to RNA-seq and ATAC-seq.
-
+WARNING: this is a modified version to specifically deal with bisulfite converted data aligned with `bismark`. 
+See the original repo for applications to RNA-seq and ATAC-seq (https://github.com/sandberg-lab/dataprivacy).
 
 ## Installation
 
@@ -30,7 +29,6 @@ The tool expects a .bam file aligned with `bismark`. Other aligners might be sup
       --out FILENAME  Path to output bam file
       --fa FILENAME   Path to genome reference fasta
       --p P           Number of processes to use
-      --strict        Strict: also sanitize mapping score & auxiliary tags (eg. AS / NH).
       --keepsecondary  Keep secondary alignments in output bam file.
       --keepunmapped   Keep ummapped reads in output bam file.
 
@@ -48,18 +46,15 @@ Here is an overview of the sequence correction strategy:
  6. Multimapping: In the default behavior, only primary alignments are emitted. The user can choose to keep secondary but note that anonymization can not be guaranteed.
  7. Unmapped reads: Unmapped reads cannot be sanitized and are discarded in default settings.
 
+Bisulfite-specific adaptation: the above mentioned corrections are not applied to CpG bases, in which mismatches should be ratained as they reflect DNA methylation variability. Furthermore, the bismark
+tag is edited to keep only CpG methylation and discard DNA methylation in other base contexts.
+
+
 Donor-related information could also be inferred from standard bam fields and auxiliary tags:
 
  1. CIGAR value is matched to the BAMboozled sequence (eg. 100M).
  2. MD are matched to the BAMboozled sequence, if present (eg. 100) .
  3. NM and nM tags are sanitized by replacement with 1.
-
-In `--strict` mode, the following tags are also changed:
-
- 4. Mapping quality set to max/unavailable (255)
- 5. AS and MQ are set to read length
- 6. NH is set to 1
- 7. Discarding of the following tags: HI, IH, H1, H2, OA, OC, OP, OQ, SA, SM, XA, XS
 
 The output bam file also will contain a `@PG` line reflecting the invoked command line call.
 ## Original reference
